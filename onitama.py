@@ -10,8 +10,17 @@ player_id = int(input())
 class nodo:
     def __init__(self, estado):
         self.estado = estado
-    
+    def imprimir(self):
+        for fila in self.estado:
+            print(fila)
+
+listamovimientos = [tarjeta1, tarjeta2, tarjeta3, tarjeta4, tarjeta5]
         
+def aplica(funcion, nodo):
+    funcion(nodo)
+
+def esPosible(movimiento, nodo):
+    if movimiento.
 
 def esFinal(nodo):
     # estadoFinal = 
@@ -26,7 +35,7 @@ def alpha_beta(nodo, profundidad, alfa, beta, jugadorMAX):
         value = -math.inf
         for mov in listamovimientos:
             if esPosible(nodo, mov):
-                nuevoNodo = aplica(movimiento, nodo)
+                nuevoNodo = aplica(mov, nodo)
                 valNuevoNodo, sigMov = alpha_beta(nuevoNodo, profundidad, alfa, beta, False)
                 if valNuevoNodo > value:
                     value = valNuevoNodo
@@ -50,7 +59,10 @@ def alpha_beta(nodo, profundidad, alfa, beta, jugadorMAX):
         return value, mejorMov
 
 # game loop
-while True:
+cantJugadas = 0
+while cantJugadas <= 200:
+    cantJugadas += 1
+
     for i in range(5):
         board = input()
     for i in range(5):
