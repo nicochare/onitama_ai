@@ -1,17 +1,22 @@
 import sys
 import math
 
-# Auto-generated code below aims at helping you parse
-# the standard input according to the problem statement.
 MAX_TURNOS = 200 # Turnos totales, 100 por jugador
+TABLERO_INICIAL = [
+    ["w","w","W","w","w"],
+    [".",".",".",".","."],
+    [".",".",".",".","."],
+    [".",".",".",".","."],
+    ["b","b","B","b","b"]
+]
 player_id = int(input())
 
-
 class nodo:
-    def __init__(self, estado):
-        self.estado = estado
+    def __init__(self, tablero, turno):
+        self.tablero = tablero
+        self.turno = turno
     def imprimir(self):
-        for fila in self.estado:
+        for fila in self.tablero:
             print(fila)
 
 class tarjeta:
@@ -46,7 +51,7 @@ def aplica(funcion, nodo):
     funcion(nodo)
 
 def esPosible(movimiento, nodo):
-    if movimiento.
+    if movimiento.dw
 
 def esFinal(nodo):
     # estadoFinal = 
