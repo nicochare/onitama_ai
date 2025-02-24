@@ -7,10 +7,15 @@ MAX_TURNOS = 200 # Turnos totales, 100 por jugador
 player_id = int(input())
 
 
-def esFinal(nodo):
-    estadoFinal = 
-    return nodo.estado == estadoFinal
+class nodo:
+    def __init__(self, estado):
+        self.estado = estado
+    
+        
 
+def esFinal(nodo):
+    # estadoFinal = 
+    return nodo.estado == 1#estadoFinal
 
 
 def alpha_beta(nodo, profundidad, alfa, beta, jugadorMAX):
