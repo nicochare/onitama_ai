@@ -14,6 +14,20 @@ class nodo:
         for fila in self.estado:
             print(fila)
 
+class tarjeta:
+    def __init__(self, owner, cardId, dx_1,dy_1, dx_2,dy_2, dx_3,dy_3, dx_4,dy_4):
+        self.owner = owner
+        self.cardId = cardId
+        self.dx_1 = dx_1
+        self.dy_1 = dy_1
+        self.dx_2 = dx_2
+        self.dy_2 = dy_2
+        self.dx_3 = dx_3
+        self.dy_3 = dy_3
+        self.dx_4 = dx_4
+        self.dy_4 = dy_4
+
+tarjeta1 = tarjeta(-1, 0,1, )
 listamovimientos = [tarjeta1, tarjeta2, tarjeta3, tarjeta4, tarjeta5]
         
 def aplica(funcion, nodo):
