@@ -33,25 +33,24 @@ class tarjeta:
         self.dy_4 = dy_4
     def devolverDatos(self):
         return self.owner, self.cardId, self.dx_1,self.dy_1, self.dx_2,self.dy_2, self.dx_3,self.dy_3, self.dx_4,self.dy_4
-
-# Tarjeta medio    
-tarjeta1 = tarjeta(-1, 1, 0,1, -1,-1, 1,-1, 0,0)
-
-# Tarjetas jugador abajo
-tarjeta4 = tarjeta(0, 4, -1,0, 0,1, 1,0, 0,0)
-tarjeta15 = tarjeta(0, 15, 0,-1, 0,2, 0,0, 0,0)
-
-# Tarjetas jugador arriba
-tarjeta9 = tarjeta(1, 9, 1,1, -1,-1, -2,0, 0,0)
-tarjeta11 = tarjeta(1, 11, -1,1, 1,1, 1,-1, -1,-1)
-
-listamovimientos = [tarjeta1, tarjeta4, tarjeta9, tarjeta11, tarjeta15]
-        
+    def devMov1(self):
+        return dx_1, dy_1
+    def devMov2(self):
+        return dx_2, dy_2
+    def devMov3(self):
+        return dx_3, dy_3
+    def devMov4(self):
+        return dx_4, dy_4
+    
 def aplica(funcion, nodo):
     funcion(nodo)
 
-def esPosible(movimiento, nodo):
-    if movimiento.dw
+def esPosible(dx, dy, fx, fy):
+    if fx + dx > 4 or fx + dx < 0:
+        return False
+    if fy + dy > 4 or fy + dy < 0:
+        return False
+    return True
 
 def esFinal(nodo):
     # estadoFinal = 
