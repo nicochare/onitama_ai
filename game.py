@@ -1,15 +1,20 @@
 import sys
 import math
+import copy
 
 # Auto-generated code below aims at helping you parse
 # the standard input according to the problem statement.
 
-player_id = int(input()) # Jugador 0
+player_id = int(input()) # Jugador 0 cuando jugas contra BOSS
 
 class tarjeta:
-    def __init__(self, owner, cardId, dx_1,dy_1, dx_2,dy_2, dx_3,dy_3, dx_4,dy_4):
+    def __init__(self, owner, card_id, dx_1,dy_1, dx_2,dy_2, dx_3,dy_3, dx_4,dy_4):
         self.owner = owner
-        self.cardId = cardId
+        self.card_id = card_id
+        # self.coord1 = coord1
+        # self.coord2 = coord2
+        # self.coord3 = coord3
+        # self.coord4 = coord4
         self.dx_1 = dx_1
         self.dy_1 = dy_1
         self.dx_2 = dx_2
@@ -18,123 +23,272 @@ class tarjeta:
         self.dy_3 = dy_3
         self.dx_4 = dx_4
         self.dy_4 = dy_4
-    def devolverDatos(self):
-        return self.owner, self.cardId, self.dx_1,self.dy_1, self.dx_2,self.dy_2, self.dx_3,self.dy_3, self.dx_4,self.dy_4
-    def devMov1(self):
-        return dx_1, dy_1
-    def devMov2(self):
-        return dx_2, dy_2
-    def devMov3(self):
-        return dx_3, dy_3
-    def devMov4(self):
-        return dx_4, dy_4
 
-def transformarTablero(tablero):
-    for i in range(5):
-        board[i] = list(board[i])
+class coordenada:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
 
-def encontrarMaster(tablero):
-    for i in range(5):
-        for j in range(5):
-            if tablero[i][j] == "B":
-                return i, j
-    return -1, -1
+class nodo:
+    def __init__(self, board, cards, acciones, turno):
+        self.turno = turno
+        self.board = board
+        self.cards = cards
+        self.acciones = acciones
+    
+    def imprimir_estado(self):
+        print("Turno: ", self.turno, file=sys.stderr)
+        for fila in board:
+            print(fila, file=sys.stderr)
 
-def distancia_manhattan(i, j):
-    i2, j2 = 0, 2
-    return abs(i-i2) + abs(j-j2)    
+def alternarId(id):
+    return 1-id
 
-def heuristica(board, tarjetas):
+def distancia_manhattan(i, j, player):
+    (i2, j2) = (0, 2) if player == 0 else (4, 2)
+    return abs(i-i2) + abs(j-j2)
+
+def heuristica(nodo):
     heur = 0
-    x_master, y_master = encontrarMaster(board)
-    distancia_master = distancia_manhattan(x_master, y_master)
+    masterMio = "W" if nodo.turno == 0 else "B"
+    masterRival = "B" if nodo.turno == 0 else "W"
 
+    xm, ym = encontrarMaster(nodo, masterMio)
+    xr, yr = encontrarMaster(nodo, masterRival)
+
+    if (xm, ym) == (0, 2) if nodo.turno == 0 else (4, 2):
+        return math.inf
+    if (xr, yr) == (4, 2) if nodo.turno == 0 else (0, 2):
+        return -math.inf
+    
+    dm_m = distancia_manhattan(xm, ym, nodo.turno)
+    dm_r = distancia_manhattan(xr, yr, alternarId(nodo.turno))
+    valor_distancia = dm_m - dm_r
+
+    peso_vivas = 1
     vivasMias = 0
     vivasRival = 0
     for i in range(5):
-        vivasMias += ''.join(board[i]).count("b")
-        vivasRival += ''.join(board[i]).count("w")
+        vivasMias += ''.join(nodo.board[i]).count(masterMio.lower())
+        vivasRival += ''.join(nodo.board[i]).count(masterRival.lower())
+    valor_vivas = vivasMias-vivasRival
 
-    peso_tarjetas = 0.2
-    tarjetasMias = []
-    for tj in tarjetas:
-        if tj.owner == 0:
-            tarjetasMias.append(tj)
-
-    for i in range(vivasMias):
-        pass
-    #valor_tarjetas = movilidad(board, tarjetasMias[0].owner, posicion_actual)
-
-    peso_distancia = 0.45 + (5 - (vivasMias + vivasRival)) * 0.1
+    peso_distancia = 0.25 + (4 - (vivasMias + vivasRival)) * 0.1
+    peso_distancia = 0
     
-    heur += (vivasMias-vivasRival)*0.55 
-    heur += distancia_master*peso_distancia
-    #heur += valor_tarjetas*peso_tarjetas
+    heur += valor_vivas*peso_vivas
+    heur += valor_distancia*peso_distancia
     return heur
 
-def traducirPosicion(caracter):
+def traducirCaracter(caracter):
     if caracter.isdigit():
-        return 5-int(caracter)
+        return ord('5')-ord(caracter)
     else:
         return ord(caracter)-ord('A')
+
+def traducirCaracterInversa(posiciones):
+    stringFinal = ""
+    for pos in posiciones:
+        codNumero, codLetra = pos
+        
+        letra = chr(codLetra + ord('A')) # Convierte 0->'A', 1->'B', ...
+        numero = chr(ord('5') - codNumero) # Convierte 0->'5', 1->'4', ...
+
+        stringFinal += letra + numero
+
+    return stringFinal
+
+def traducirPosicion(accion):
+    posIni = [traducirCaracter(accion[1]), traducirCaracter(accion[0])]
+    posFin = [traducirCaracter(accion[3]), traducirCaracter(accion[2])]
+
+    return posIni, posFin
 
 def swap(board, posInic, posFin):
     aux = board[posInic[0]][posInic[1]]
     board[posInic[0]][posInic[1]] = board[posFin[0]][posFin[1]] 
     board[posFin[0]][posFin[1]] = aux
-
+    return board
+    
 def traducirAccionATarjeta(accionIni, accionFin):
     return accionFin[0]-accionIni[0], accionFin[1]-accionIni[1]
 
-def jugarCarta(tarjetas, num_tarjeta, posIni, posFin):
-    i=0
-    tarjeta = tarjetas[i]
-    while i <= len(tarjetas) and tarjeta.card_id != num_tarjeta:
-        tarjeta = tarjetas[++i]
+def jugarCarta(cards, num_tarjeta):
+    cardsCopy = [copy.deepcopy(c) for c in cards]
+    i = next(i for i, c in enumerate(cardsCopy) if c.card_id == num_tarjeta)
+    j = next(j for j, c in enumerate(cardsCopy) if c.owner == -1)
 
-    i=0
-    tarjetaMedio = tarjetas[i]
-    while i <= len(tarjetas) and tarjetaMedio.owner != -1:
-        tarjetaMedio = tarjetas[++i]
+    aux = cardsCopy[i].owner
+    cardsCopy[i].owner = -1
+    cardsCopy[j].owner = aux
+
+    cardsCopy[i].dx_1, cardsCopy[i].dy_1 = -cardsCopy[i].dx_1, -cardsCopy[i].dy_1
+    cardsCopy[i].dx_2, cardsCopy[i].dy_2 = -cardsCopy[i].dx_2, -cardsCopy[i].dy_2
+    cardsCopy[i].dx_3, cardsCopy[i].dy_3 = -cardsCopy[i].dx_3, -cardsCopy[i].dy_3
+    cardsCopy[i].dx_4, cardsCopy[i].dy_4 = -cardsCopy[i].dx_4, -cardsCopy[i].dy_4
+    return cardsCopy
+
+def realizarAccion(nodo, accion):
+    nodo.imprimir_estado()
+    print(accion, file=sys.stderr)
+    nodoCopy = copy.deepcopy(nodo)
+    posIni, posFin = accion[2]
     
-    if tarjeta.owner == 0:
-        tarjetaMedio.owner = 0
+    if nodoCopy.board[posFin[0]][posFin[1]] != '-':
+        nodoCopy.board[posFin[0]][posFin[1]] = '-'
+    
+    nodoCopy.board = swap(nodoCopy.board, posIni, posFin)
+    
+    nodoCopy.cards = jugarCarta(nodoCopy.cards, accion[1])
+
+    nodoCopy.turno = alternarId(nodoCopy.turno)
+
+    nodoCopy.imprimir_estado()
+    return nodoCopy
+
+def evaluarPuntuacionAccion(nodo, accion):
+    nodoCopy = realizarAccion(nodo, accion)
+    return heuristica(nodoCopy)
+
+def transformarTablero(board):
+    for i in range(len(board)):
+        board[i] = list(board[i])
+
+def encontrarMaster(nodo, masterCaracter):
+    for i in range(len(nodo.board)):
+        for j in range(len(nodo.board)):
+            if nodo.board[i][j] == masterCaracter:
+                return i, j
+    return -1, -1
+
+def posValida(pos):
+    return 0 <= pos[0] <= 4 and 0 <= pos[1] <= 4
+
+def esPosible(nodo, mov):
+    posIni, posFin = mov[2]
+    piezaTurno = "w" if nodo.turno == 0 else "b"
+
+    if not posValida(posIni) or not posValida(posFin):
+        return False
+    
+    piezaIni = nodo.board[posIni[0]][posIni[1]].lower()
+    piezaFin = nodo.board[posFin[0]][posFin[1]].lower()
+    if piezaIni in ["-", "", " "] or piezaIni != piezaTurno:
+        return False
+    if piezaIni == piezaFin:
+        return False
+    return True
+
+def esFinal(nodo):
+    iW, jW = encontrarMaster(nodo, "W")
+    iB, jB = encontrarMaster(nodo, "B")
+    return (iW, jW) == (-1, -1) or (iB, jB) == (-1, -1) or (iW, jW) == (0, 2) or (iB, jB) == (4, 2)
+
+def find(s, ch):
+    return [i for i, ltr in enumerate(s) if ltr == ch]
+
+def devAccionesJugActual(nodo):
+    posiciones = []
+    pieza = "W" if nodo.turno == 0 else "B"
+
+    for i in range(len(nodo.board)): # por cada fila
+        fila = "".join(nodo.board[i])
+        posMaster = find(fila, pieza.upper())
+        if len(posMaster) > 0:
+            posiciones.append([i, posMaster[0]]) # Master, solo 1
+        for j in find(fila, pieza.lower()):
+            posiciones.append([i, j])
+    
+    # Owner card 0 = "W w"
+    # Owner card 1 = "B b"
+    # Owner card -1 = middle
+    
+    accionesTotales = []
+    for card in nodo.cards:
+        if card.owner == nodo.turno:
+            movimientos = [
+                (card.dx_1, card.dy_1),
+                (card.dx_2, card.dy_2),
+                (card.dx_3, card.dy_3),
+                (card.dx_4, card.dy_4)
+            ]
+            mov_validos = {m for m in movimientos if m != (0, 0)}
+            for dx, dy in mov_validos:
+                #print(f"Carta {card.card_id} - dx: {dx}, dy: {dy}", file=sys.stderr)
+                for pos in posiciones:
+                    accionesTotales.append([
+                        card.owner,
+                        card.card_id,
+                        [   
+                            pos,   # posIni
+                            [pos[0] + dx, pos[1] - dy] # posFin
+                        ]
+                    ])
+    return accionesTotales # Formato [cardOwner, card_id, [posIni, posFin]]
+
+def encontrarAccionesPosibles(nodo):
+    acciones = []
+    for ac in devAccionesJugActual(nodo):
+        if esPosible(nodo, ac):
+            acciones.append(ac)
+    return acciones
+
+def eval(nodo):
+    acciones = encontrarAccionesPosibles(nodo)
+    if len(acciones) > 0:
+        valMax = -math.inf
+
+        maxAc = acciones[0]
+        for ac in acciones:
+            nodoCopy = realizarAccion(nodo, ac)
+            heur = heuristica(nodoCopy)
+            if heur > valMax:
+                valMax = heur
+                maxAc = ac
+        return valMax, maxAc
     else:
-        tarjetaMedio.owner = 1
-    tarjeta.owner = -1
+        return -math.inf, [0,0,"PASS"]
 
+def alpha_beta(nodo, profundidad, alfa, beta, jugadorMAX):
+    if profundidad == 0 or esFinal(nodo):
+        return heuristica(nodo), None
+    
+    if jugadorMAX:
+        value = -math.inf
+        mejor_accion = None
 
-    dx, dy = traducirAccionATarjeta(posIni, posFin)    
+        for accion in encontrarAccionesPosibles(nodo):
+            nuevoNodo = realizarAccion(nodo, accion)
+            valNuevoNodo, _ = alpha_beta(nuevoNodo, profundidad-1, alfa, beta, False)
+            if valNuevoNodo > value:
+                value = valNuevoNodo
+                mejor_accion = accion
+            alfa = max(alfa, value)
+            if alfa >= beta:
+                break
+        return value, mejor_accion
+    else:
+        value = math.inf
+        mejor_accion = None
 
-    if tarjeta.dx1 == dx and tarjeta.dy1 == dy:
-        tarjeta.dx1 *= -1
-        tarjeta.dy1 *= -1
-    if tarjeta.dx2 == dx and tarjeta.dy2 == dy:
-        tarjeta.dx2 *= -1
-        tarjeta.dy2 *= -1
-    if tarjeta.dx3 == dx and tarjeta.dy3 == dy:
-        tarjeta.dx3 *= -1
-        tarjeta.dy3 *= -1
-    if tarjeta.dx4 == dx and tarjeta.dy4 == dy:
-        tarjeta.dx4 *= -1
-        tarjeta.dy4 *= -1
+        for accion in encontrarAccionesPosibles(nodo):
+            nuevoNodo = realizarAccion(nodo, accion)
+            valNuevoNodo, _ = alpha_beta(nuevoNodo, profundidad-1, alfa, beta, True)
+            if valNuevoNodo < value:
+                value = valNuevoNodo
+                mejor_accion = accion
+            beta = min(beta, value)
+            if alfa >= beta:
+                break
+        return value, mejor_accion
 
+def encontrarOwner(tarjetas, card_id):
+    for card in tarjetas:
+        if card.card_id == card_id:
+            return card.owner
 
+print("Soy jugador: ", player_id,  file=sys.stderr, flush=True)
 
-def realizarAccion(board, accion, tarjetasCopy):
-    posIni = [traducirPosicion(accion[1][0]), traducirPosicion(accion[1][1])]
-    posFin = [traducirPosicion(accion[1][2]), traducirPosicion(accion[1][3])]
-    swap(board, posIni, posFin)
-    jugarCarta(tarjetasCopy, accion[0], posIni, posFin)
-
-def evaluarPuntuacionAccion(accion, board, tarjetas):
-    boardCopy = board.copy()
-    tarjetasCopy = tarjetas.deepcopy()
-    realizarAccion(boardCopy, accion, tarjetasCopy)
-    return heuristica(boardCopy, tarjetasCopy)
-
-
-# game loop
 while True:
     # Tablero
     board = []
@@ -144,12 +298,12 @@ while True:
     
     transformarTablero(board)
 
-    # 5 Tarjetas
-    tarjetas = []
+    # 5 cards
+    cards = []
     for i in range(5):
         owner, card_id, dx_1, dy_1, dx_2, dy_2, dx_3, dy_3, dx_4, dy_4 = [int(j) for j in input().split()]
         card = tarjeta(owner, card_id, dx_1, dy_1, dx_2, dy_2, dx_3, dy_3, dx_4, dy_4)
-        tarjetas.append(card)
+        cards.append(card)
 
     # Acciones posibles
     acciones = []
@@ -158,25 +312,19 @@ while True:
         inputs = input().split()
         card_id = int(inputs[0])
         move = inputs[1]
-        acciones.append([card_id, move])
-
-    #puntuacion = heuristica(board)
+        posIni, posFin = traducirPosicion(move)
+        acciones.append([player_id, card_id, [posIni, posFin]])
 
     if len(acciones) > 0:
-        #accion_puntuacion = []
-        maxAccion = [[]]
-        maxPuntuacion = -math.inf
+        nodoActual = nodo(board, cards, acciones, player_id)
         
-        for ac in acciones:
-
-            points = evaluarPuntuacionAccion(ac, board, tarjetas)
-            print(points, file=sys.stderr, flush=True)
-            if maxPuntuacion < points:
-                maxPuntuacion = points
-                maxAccion = ac
+        valor, maxAccion = alpha_beta(nodoActual, 2, -math.inf, math.inf, True)
         
-        print(maxPuntuacion, file=sys.stderr, flush=True)
-        
-        print(maxAccion[0], maxAccion[1])
+        if maxAccion is not None:
+            print(valor, file=sys.stderr, flush=True)
+            print(maxAccion,  file=sys.stderr, flush=True)
+            print(maxAccion[1], traducirCaracterInversa(maxAccion[2]))
+        else:
+            print("PASS")
     else:
         print("PASS")
