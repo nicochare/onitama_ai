@@ -44,38 +44,84 @@ class nodo:
 def alternarId(id):
     return 1-id
 
-def distancia_manhattan(i, j, player):
+def distancia_manhattan(i, i2, j, j2):
+    return abs(i-i2) + abs(j-j2)
+
+def distancia_manhattan_shrine(i, j, player):
     (i2, j2) = (0, 2) if player == 0 else (4, 2)
     return abs(i-i2) + abs(j-j2)
 
-def heuristica(nodo):
+def rival_mas_cercano_master(nodo, xm, ym):
+    posiciones = []
+    pieza = "B" if nodo.turno == 0 else "W"
+    distancia = math.inf
+    for i in range(len(nodo.board)): # por cada fila
+        fila = "".join(nodo.board[i])
+        posMaster = find(fila, pieza.upper())
+        if len(posMaster) > 0:
+            posiciones.append([i, posMaster[0]]) # Master, solo 1
+            if distancia > distancia_manhattan(xm, i, ym, posMaster[0]):
+                distancia = distancia_manhattan(xm, i, ym, posMaster[0])
+        for j in find(fila, pieza.lower()):
+            posiciones.append([i, j])
+            if distancia > distancia_manhattan(xm, i, j, ym):
+                distancia = distancia_manhattan(xm, i, j, ym)
+    return distancia
+
+
+def eval(nodo):
     heur = 0
     masterMio = "W" if nodo.turno == 0 else "B"
     masterRival = "B" if nodo.turno == 0 else "W"
 
     xm, ym = encontrarMaster(nodo, masterMio)
     xr, yr = encontrarMaster(nodo, masterRival)
-
-    if (xm, ym) == (0, 2) if nodo.turno == 0 else (4, 2):
+    centro = [(2,2), (2,1), (2,3)]
+    shrine_propio = (0,2) if nodo.turno == 1 else (4,2)
+    shrine_rival = (4,2) if nodo.turno == 1 else (0,2)
+    
+    if (xm, ym) == shrine_rival:
         return math.inf
-    if (xr, yr) == (4, 2) if nodo.turno == 0 else (0, 2):
+    if (xr, yr) == shrine_propio:
         return -math.inf
     
-    dm_m = distancia_manhattan(xm, ym, nodo.turno)
-    dm_r = distancia_manhattan(xr, yr, alternarId(nodo.turno))
+    # Distancia shrine
+    dm_m = distancia_manhattan_shrine(xm, ym, nodo.turno)
+    dm_r = distancia_manhattan_shrine(xr, yr, alternarId(nodo.turno))
     valor_distancia = dm_m - dm_r
 
-    peso_vivas = 1
+
+    # Control centro
+    valorCentro = 0
+    for i, j in centro:
+        if nodo.board[i][j] == masterMio.lower():
+            valorCentro += 1.5
+        elif nodo.board[i][j] == masterRival.lower():
+            valorCentro -= 1.5
+    
+    heur += valorCentro
+
+    peso_vivas = 0.55
     vivasMias = 0
     vivasRival = 0
+
     for i in range(5):
         vivasMias += ''.join(nodo.board[i]).count(masterMio.lower())
         vivasRival += ''.join(nodo.board[i]).count(masterRival.lower())
     valor_vivas = vivasMias-vivasRival
 
+    if nodo.turno == 0 and vivasRival > 3 and xm < 3:
+        heur -= 0.5
+    if nodo.turno == 1 and vivasRival > 3 and xm > 1:
+        heur -= 2
+
     peso_distancia = 0.25 + (4 - (vivasMias + vivasRival)) * 0.1
-    peso_distancia = 0
     
+    if rival_mas_cercano_master(nodo, xm, ym) == 3:
+        heur -= 2
+    elif rival_mas_cercano_master(nodo, xm, ym) < 3:
+        heur -= 3
+
     heur += valor_vivas*peso_vivas
     heur += valor_distancia*peso_distancia
     return heur
@@ -129,8 +175,6 @@ def jugarCarta(cards, num_tarjeta):
     return cardsCopy
 
 def realizarAccion(nodo, accion):
-    nodo.imprimir_estado()
-    print(accion, file=sys.stderr)
     nodoCopy = copy.deepcopy(nodo)
     posIni, posFin = accion[2]
     
@@ -143,12 +187,11 @@ def realizarAccion(nodo, accion):
 
     nodoCopy.turno = alternarId(nodoCopy.turno)
 
-    nodoCopy.imprimir_estado()
     return nodoCopy
 
 def evaluarPuntuacionAccion(nodo, accion):
     nodoCopy = realizarAccion(nodo, accion)
-    return heuristica(nodoCopy)
+    return eval(nodoCopy)
 
 def transformarTablero(board):
     for i in range(len(board)):
@@ -221,7 +264,7 @@ def devAccionesJugActual(nodo):
                         card.card_id,
                         [   
                             pos,   # posIni
-                            [pos[0] + dx, pos[1] - dy] # posFin
+                            [pos[0] - dy, pos[1] + dx] # posFin
                         ]
                     ])
     return accionesTotales # Formato [cardOwner, card_id, [posIni, posFin]]
@@ -233,25 +276,9 @@ def encontrarAccionesPosibles(nodo):
             acciones.append(ac)
     return acciones
 
-def eval(nodo):
-    acciones = encontrarAccionesPosibles(nodo)
-    if len(acciones) > 0:
-        valMax = -math.inf
-
-        maxAc = acciones[0]
-        for ac in acciones:
-            nodoCopy = realizarAccion(nodo, ac)
-            heur = heuristica(nodoCopy)
-            if heur > valMax:
-                valMax = heur
-                maxAc = ac
-        return valMax, maxAc
-    else:
-        return -math.inf, [0,0,"PASS"]
-
 def alpha_beta(nodo, profundidad, alfa, beta, jugadorMAX):
     if profundidad == 0 or esFinal(nodo):
-        return heuristica(nodo), None
+        return eval(nodo), None
     
     if jugadorMAX:
         value = -math.inf
@@ -281,7 +308,7 @@ def alpha_beta(nodo, profundidad, alfa, beta, jugadorMAX):
             if alfa >= beta:
                 break
         return value, mejor_accion
-
+        
 def encontrarOwner(tarjetas, card_id):
     for card in tarjetas:
         if card.card_id == card_id:
@@ -317,9 +344,8 @@ while True:
 
     if len(acciones) > 0:
         nodoActual = nodo(board, cards, acciones, player_id)
-        
         valor, maxAccion = alpha_beta(nodoActual, 2, -math.inf, math.inf, True)
-        
+
         if maxAccion is not None:
             print(valor, file=sys.stderr, flush=True)
             print(maxAccion,  file=sys.stderr, flush=True)
