@@ -185,7 +185,7 @@ def swap(board, pos_inic, pos_fin):
 def jugar_carta(cards, num_tarjeta, owner):
     new_cards = []
     for c in cards:
-        if c.card_id == num_tarjeta:
+        if c.card_id == num_tarjeta: # Tarjeta a jugar
             new_cards.append(tarjeta(
                 -1,
                 c.card_id,
@@ -194,7 +194,7 @@ def jugar_carta(cards, num_tarjeta, owner):
                 -c.dx_3, -c.dy_3,
                 -c.dx_4, -c.dy_4
             ))
-        elif c.owner == -1:
+        elif c.owner == -1:         # Tarjeta del medio
             new_cards.append(tarjeta(
                 owner,
                 c.card_id,
@@ -217,12 +217,10 @@ def jugar_carta(cards, num_tarjeta, owner):
 def aplica(accion, nodo_param):
     (pos_ini, pos_fin) = accion[2]
     
-    nn = nodo(
+    return nodo(
         swap(nodo_param.board, pos_ini, pos_fin), 
         jugar_carta(nodo_param.cards, accion[1], nodo_param.turno), 
         nodo_param.turno)
-
-    return nn
 
 def es_posible(nodo_param, mov):
     _, _, (pos_ini, pos_fin) = mov
