@@ -90,8 +90,24 @@ def encontrar_master(nodo_param, master_caracter):
 
 def eval(nodo_param):
     score = 0
+    nodo_param.turno = 0
+
     master_propio = "W" if nodo_param.turno == 0 else "B"
     master_rival = "B" if master_propio == "W" else "W"
+    xm, ym = encontrar_master(nodo_param, master_propio)
+    xr, yr = encontrar_master(nodo_param, master_rival)
+    if (xr, yr) == (-1, -1):
+        return 999999
+    if (xm, ym) == (-1, -1):
+        return -999999
+    
+    vivas_mias = 0
+    vivas_rival = 0
+    for i in range(5):
+        vivas_mias += ''.join(nodo_param.board[i]).count(master_propio.lower())
+        vivas_rival += ''.join(nodo_param.board[i]).count(master_rival.lower())
+    valor_vivas = vivas_mias-vivas_rival
+    return valor_vivas
 
     xm, ym = encontrar_master(nodo_param, master_propio)
     xr, yr = encontrar_master(nodo_param, master_rival)
@@ -268,17 +284,12 @@ def alpha_beta(nodo_param, profundidad, alfa, beta, jugadorMAX):
 
     acciones = generar_acciones_validas(nodo_param)
 
-    print("NODO:", file=sys.stderr, flush=True)
-    nodo_param.imprimir_estado()
-
     if jugadorMAX:
         value = -math.inf
         mejor_accion = None
 
         for accion in acciones:
             nuevo_nodo = aplica(accion, nodo_param)
-            print("DSP:", file=sys.stderr, flush=True)
-            nuevo_nodo.imprimir_estado()
 
             valor_nuevo_nodo, _ = alpha_beta(nuevo_nodo, profundidad, alfa, beta, False)
 
@@ -330,7 +341,7 @@ while True:
     
     if action_count > 0:
         nodoActual = Nodo(board, cards, player_id)
-        valor, accion = alpha_beta(nodoActual, 10, -math.inf, math.inf, True)
+        valor, accion = alpha_beta(nodoActual, 30, -math.inf, math.inf, True)
 
         if accion is not None:
             print(accion[1], traducir_accion_inversa(accion[2]))
