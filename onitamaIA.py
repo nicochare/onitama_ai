@@ -78,8 +78,8 @@ def calcularMovimientosPosibles(nodo):
     piezas = [(i, j) for i in range(5) for j in range(5) if nodo.tablero[i][j] in (master, peon)]
     tarjetas_disponibles = [t for t in nodo.tarjetas if t.owner == nodo.turno]
 
-    for i, j in piezas:
-        for tarjeta in tarjetas_disponibles:
+    for tarjeta in tarjetas_disponibles:
+        for i, j in piezas:
             for casilla in tarjeta.casillas:
                 if esPosible([i, j], casilla, nodo.tablero, nodo.turno):
                     movimientos.append([tarjeta.owner, tarjeta.card_id, [[i, j], [i - casilla[1], j + casilla[0]]]])
@@ -131,7 +131,7 @@ def jugar_carta(cards, cardId, owner):
     return new_cards
 
 def intercambio(tablero, posIni, posFin):
-    tableroAux = copy.deepcopy(tablero)
+    tableroAux = [fila[:] for fila in tablero]
     
     if tableroAux[posFin[0]][posFin[1]] != '-':
         tableroAux[posFin[0]][posFin[1]] = '-'
@@ -149,6 +149,7 @@ def aplica(mov, nodo):
     return Nodo(tableroAux, tarjetasAux, turnoAux, nodo.player_id)
 
 def eval(nodo_param):
+    INF = 1000000
     score = 0
     
     master_propio = "W" if nodo_param.player_id == 0 else "B"
@@ -179,11 +180,11 @@ def eval(nodo_param):
 
     dm_m = distancia_manhattan_shrine(xm, ym, shrine_rival)
     if dm_m == 0:
-        return math.inf
+        return INF
 
     dm_r = distancia_manhattan_shrine(xr, yr, shrine_propio)
     if dm_r == 0:
-        return -math.inf
+        return -INF
     
     score += (dm_m - dm_r)*0.3
 
@@ -200,17 +201,19 @@ def eval(nodo_param):
     return score
 
 def alpha_beta(nodo, profundidad, alfa, beta, jugadorMAX):
+    INF = 1000000
+    
     if profundidad == 0 or esFinal(nodo):
         return eval(nodo), None
     
     movimientos = calcularMovimientosPosibles(nodo)
 
     if jugadorMAX:
-        valor = -math.inf
+        valor = -INF
         mejorMov = None
         for mov in movimientos:
             nuevoNodo = aplica(mov, nodo)
-            valNuevoNodo, sigMov = alpha_beta(nuevoNodo, profundidad-1, alfa, beta, False)
+            valNuevoNodo, sigMov = alpha_beta(nuevoNodo, profundidad, alfa, beta, False)
             if valNuevoNodo > valor:
                 valor = valNuevoNodo
                 mejorMov = mov
@@ -220,7 +223,7 @@ def alpha_beta(nodo, profundidad, alfa, beta, jugadorMAX):
         return valor, mejorMov
     
     else:
-        valor = math.inf
+        valor = INF
         mejorMov = None
         for mov in movimientos:
             nuevoNodo = aplica(mov, nodo)
@@ -234,7 +237,7 @@ def alpha_beta(nodo, profundidad, alfa, beta, jugadorMAX):
         return valor, mejorMov
 
 player_id = int(input())
-
+turno = 0 if player_id == 0 else 1
 # game loop
 while True:
     board = []
@@ -258,11 +261,11 @@ while True:
         move = inputs[1]
         posIni, posFin = traducirMovimientoAPosicion(move)
         actions.append([player_id, card_id, [posIni, posFin]])
-    
-    nodoInicial = Nodo(board, cards, 0, player_id)
+
+    nodoInicial = Nodo(board, cards, turno, player_id)
 
     if (len(actions) > 0):
-        valor, movimiento = alpha_beta(nodoInicial, 3, -math.inf, math.inf, True) # movimiento como posicion -> [posIni, posFin]
+        valor, movimiento = alpha_beta(nodoInicial, 2, -math.inf, math.inf, True) # movimiento como posicion -> [posIni, posFin]
         card_id = movimiento[1]
         move = traducirPosicionAMovimiento(movimiento[2])
         print(card_id, move) # cardID MOVE
