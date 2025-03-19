@@ -1,6 +1,8 @@
 import sys
 import math
-import copy
+import time
+
+INF = 1000000
 
 class Nodo:
     def __init__(self, tablero, tarjetas, turno, player_id):
@@ -149,7 +151,6 @@ def aplica(mov, nodo):
     return Nodo(tableroAux, tarjetasAux, turnoAux, nodo.player_id)
 
 def eval(nodo_param):
-    INF = 1000000
     score = 0
     
     master_propio = "W" if nodo_param.player_id == 0 else "B"
@@ -200,9 +201,10 @@ def eval(nodo_param):
 
     return score
 
-def alpha_beta(nodo, profundidad, alfa, beta, jugadorMAX):
-    INF = 1000000
-    
+def alpha_beta(nodo, profundidad, alfa, beta, jugadorMAX, tiempo_inicio, limite_ms):
+    if (time.time() - tiempo_inicio) * 1000 >= limite_ms:
+        return eval(nodo), None
+
     if profundidad == 0 or esFinal(nodo):
         return eval(nodo), None
     
@@ -213,7 +215,7 @@ def alpha_beta(nodo, profundidad, alfa, beta, jugadorMAX):
         mejorMov = None
         for mov in movimientos:
             nuevoNodo = aplica(mov, nodo)
-            valNuevoNodo, sigMov = alpha_beta(nuevoNodo, profundidad, alfa, beta, False)
+            valNuevoNodo, sigMov = alpha_beta(nuevoNodo, profundidad, alfa, beta, False, tiempo_inicio, limite_ms)
             if valNuevoNodo > valor:
                 valor = valNuevoNodo
                 mejorMov = mov
@@ -227,7 +229,7 @@ def alpha_beta(nodo, profundidad, alfa, beta, jugadorMAX):
         mejorMov = None
         for mov in movimientos:
             nuevoNodo = aplica(mov, nodo)
-            valNuevoNodo, sigMov = alpha_beta(nuevoNodo, profundidad-1, alfa, beta, True)
+            valNuevoNodo, sigMov = alpha_beta(nuevoNodo, profundidad-1, alfa, beta, True, tiempo_inicio, limite_ms)
             if valNuevoNodo < valor:
                 valor = valNuevoNodo
                 mejorMov = mov
@@ -265,7 +267,8 @@ while True:
     nodoInicial = Nodo(board, cards, turno, player_id)
 
     if (len(actions) > 0):
-        valor, movimiento = alpha_beta(nodoInicial, 2, -math.inf, math.inf, True) # movimiento como posicion -> [posIni, posFin]
+        start_time = time.time()
+        valor, movimiento = alpha_beta(nodoInicial, 2, -INF, INF, True, start_time, 45) # movimiento como posicion -> [posIni, posFin], tiempo limite 45ms
         card_id = movimiento[1]
         move = traducirPosicionAMovimiento(movimiento[2])
         print(card_id, move) # cardID MOVE
