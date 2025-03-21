@@ -1,15 +1,18 @@
-import sys
-import math
+# Codigo optimizado
+
 import time
 
 INF = 1000000
 
 class Nodo:
-    def __init__(self, tablero, tarjetas, turno, player_id):
+    def __init__(self, tablero, tarjetas, turno, player_id, vivasTotal, vivasMias, vivasRival):
         self.tablero = tablero
         self.tarjetas = tarjetas
         self.turno = turno
         self.player_id = player_id
+        self.vivasTotal = vivasTotal
+        self.vivasMias = vivasMias
+        self.vivasRival = vivasRival
 
 class Tarjeta:
     def __init__(self, owner, cardId, dx_1,dy_1, dx_2,dy_2, dx_3,dy_3, dx_4,dy_4):
@@ -17,46 +20,18 @@ class Tarjeta:
         self.card_id = cardId
         self.casillas = [[dx_1, dy_1], [dx_2, dy_2], [dx_3, dy_3], [dx_4, dy_4]]
 
-def transformarTablero(tablero):
-    for i in range(5):
-        tablero[i] = list(tablero[i])
-
-def encontrarMaster(tablero, masterCaracter):
-    for i in range(5):
-        for j in range(5):
-            if tablero[i][j] == masterCaracter:
-                return [i, j]
-    return [-1, -1]
-
-def distancia_manhattan(i, i2, j, j2):
-    return abs(i-i2) + abs(j-j2)
-
-def distancia_manhattan_shrine(i, j, shrine):
-    return distancia_manhattan(i, shrine[0], j, shrine[1])
-
-def traducirCaracter(caracter):
-    if caracter.isdigit():
-        return ord('5')-ord(caracter)
-    else:
-        return ord(caracter)-ord('A')
+caracter_a_pos = {'A' : 0, 'B' : 1, 'C' : 2, 'D' : 3, 'E' : 4, '5' : 0, '4' : 1, '3' : 2, '2' : 3, '1' : 4}
 
 def traducirMovimientoAPosicion(movimiento):
-    posIni = [traducirCaracter(movimiento[1]), traducirCaracter(movimiento[0])]
-    posFin = [traducirCaracter(movimiento[3]), traducirCaracter(movimiento[2])]
-
+    posIni = [caracter_a_pos[movimiento[1]], caracter_a_pos[movimiento[0]]]
+    posFin = [caracter_a_pos[movimiento[3]], caracter_a_pos[movimiento[2]]]
     return posIni, posFin
 
 def traducirPosicionAMovimiento(posicion):
-    accion = ""
-    for coord in posicion:
-        cod_numero, cod_letra = coord
-        
-        letra = chr(cod_letra + ord('A')) # Convierte 0->'A', 1->'B', ...
-        numero = chr(ord('5') - cod_numero) # Convierte 0->'5', 1->'4', ...
-
-        accion += letra + numero
-
-    return accion
+    letras = 'ABCDE'
+    numeros = '54321'
+    
+    return ''.join([letras[cod_letra] + numeros[cod_numero] for cod_numero, cod_letra in posicion])
 
 def esPosible(pieza, casilla, tablero, turno):
     nueva_fila = pieza[0] - casilla[1]
@@ -64,7 +39,6 @@ def esPosible(pieza, casilla, tablero, turno):
 
     if not (0 <= nueva_fila < 5 and 0 <= nueva_columna < 5):
         return False
-    
     if turno == 0 and tablero[nueva_fila][nueva_columna] in ('w', 'W'):
         return False
     if turno == 1 and tablero[nueva_fila][nueva_columna] in ('b', 'B'):
@@ -73,18 +47,53 @@ def esPosible(pieza, casilla, tablero, turno):
     return True
 
 def calcularMovimientosPosibles(nodo):
+    # Determinar qué piezas buscar según el turno (caching en variables locales)
     master = "W" if nodo.turno == 0 else "B"
     peon = "w" if nodo.turno == 0 else "b"
-
+    
+    # Pre-almacenar el tablero para acceso rápido
+    tablero = nodo.tablero
+    turno = nodo.turno
+    
+    # Lista pre-asignada para mejor manejo de memoria
     movimientos = []
-    piezas = [(i, j) for i in range(5) for j in range(5) if nodo.tablero[i][j] in (master, peon)]
-    tarjetas_disponibles = [t for t in nodo.tarjetas if t.owner == nodo.turno]
-
+    
+    # Filtrar tarjetas disponibles una sola vez
+    tarjetas_disponibles = [t for t in nodo.tarjetas if t.owner == turno]
+    
+    # Encontrar piezas una sola vez y guardarlas - usando comprensión de listas optimizada
+    piezas = []
+    for i in range(5):
+        for j in range(5):
+            if tablero[i][j] == master or tablero[i][j] == peon:
+                piezas.append((i, j))
+    
+    # Optimización de bucles anidados
     for tarjeta in tarjetas_disponibles:
+        owner = tarjeta.owner
+        card_id = tarjeta.card_id
+        casillas = tarjeta.casillas
+        
         for i, j in piezas:
-            for casilla in tarjeta.casillas:
-                if esPosible([i, j], casilla, nodo.tablero, nodo.turno):
-                    movimientos.append([tarjeta.owner, tarjeta.card_id, [[i, j], [i - casilla[1], j + casilla[0]]]])
+            origen = [i, j]
+            
+            for casilla in casillas:
+                # Calcular coordenadas destino una sola vez
+                dx, dy = casilla
+                x, y = i - dy, j + dx
+                
+                # Verificar límites antes de llamar a esPosible (evita llamadas innecesarias)
+                if 0 <= x < 5 and 0 <= y < 5:
+                    destino = [x, y]
+                    
+                    # Verificación rápida: si es una pieza propia, no es válido (inlined)
+                    pieza_destino = tablero[x][y]
+                    piezas_propias = ["W", "w"] if turno == 0 else ["B", "b"]
+                    
+                    if pieza_destino not in piezas_propias:
+                        # Solo llamar a esPosible si pasó las verificaciones básicas
+                        if esPosible(origen, casilla, tablero, turno):
+                            movimientos.append([owner, card_id, [origen, destino]])
     
     return movimientos
 
@@ -105,13 +114,13 @@ def jugar_carta(cards, cardId, owner):
     for c in cards:
         if c.card_id == cardId: # Tarjeta a jugar
             new_cards.append(Tarjeta(
-                -1,
-                c.card_id,
-                -c.casillas[0][0], -c.casillas[0][1],
-                -c.casillas[1][0], -c.casillas[1][1],
-                -c.casillas[2][0], -c.casillas[2][1],
-                -c.casillas[3][0], -c.casillas[3][1]
-            ))
+                    -1,
+                    c.card_id,
+                    -c.casillas[0][0], -c.casillas[0][1],
+                    -c.casillas[1][0], -c.casillas[1][1],
+                    -c.casillas[2][0], -c.casillas[2][1],
+                    -c.casillas[3][0], -c.casillas[3][1]
+                ))
         elif c.owner == -1:     # Tarjeta del medio
             new_cards.append(Tarjeta(
                 owner,
@@ -132,10 +141,15 @@ def jugar_carta(cards, cardId, owner):
             ))
     return new_cards
 
-def intercambio(tablero, posIni, posFin):
-    tableroAux = [fila[:] for fila in tablero]
+def intercambio(tablero, posIni, posFin, player_id, vivas):
+    tableroAux = [fila.copy() for fila in tablero]
     
     if tableroAux[posFin[0]][posFin[1]] != '-':
+        vivas[0] -= 1
+        if tableroAux[posFin[0]][posFin[1]].lower() == "b" and player_id == 0:
+            vivas[2] -= 1
+        elif tableroAux[posFin[0]][posFin[1]].lower() == "b":
+            vivas[1] -= 1
         tableroAux[posFin[0]][posFin[1]] = '-'
 
     tableroAux[posIni[0]][posIni[1]], tableroAux[posFin[0]][posFin[1]] = tableroAux[posFin[0]][posFin[1]], tableroAux[posIni[0]][posIni[1]]
@@ -144,108 +158,140 @@ def intercambio(tablero, posIni, posFin):
 
 def aplica(mov, nodo):
     # mov[0] owner, mov[1] cardId, mov[2] [posIni, posFin]
-    tableroAux = intercambio(nodo.tablero, mov[2][0], mov[2][1])
-    tarjetasAux = jugar_carta(nodo.tarjetas, mov[1], mov[0])   
+    listaVivas = [nodo.vivasTotal, nodo.vivasMias, nodo.vivasRival]
+    tableroAux = intercambio(nodo.tablero, mov[2][0], mov[2][1], player_id, listaVivas)
+    tarjetasAux = jugar_carta(nodo.tarjetas, mov[1], mov[0])
     turnoAux = 1 - nodo.turno
 
-    return Nodo(tableroAux, tarjetasAux, turnoAux, nodo.player_id)
+    return Nodo(tableroAux, tarjetasAux, turnoAux, nodo.player_id, listaVivas[0], listaVivas[1], listaVivas[2])
 
 def eval(nodo_param):
+    # Declaracion de variables
     score = 0
-    
-    master_propio = "W" if nodo_param.player_id == 0 else "B"
-    master_rival = "B" if master_propio == "W" else "W"
-    peon_propio = "w" if nodo_param.player_id == 0 else "b"
-    peon_rival = "b" if peon_propio == "w" else "w"
+    (master_propio, master_rival) = ("W","B") if nodo_param.player_id == 0 else ("B","W")
+    (shrine_propio, shrine_rival) = ((4,2),(0,2)) if nodo_param.player_id == 0 else ((0,2),(4,2))
+    peon_propio = master_propio.lower()
+    peon_rival = master_rival.lower()
 
-    piezas_propias = 0
-    piezas_rival = 0
+    piezas_propias = piezas_rival = 0
+    centro_propio = centro_rival = 0
 
+    xm = ym = xr = yr = -1
+
+    # Posiciones centrales
+    posiciones_centrales = {(2,2), (2,1), (2,3)}
+
+    # Bucle principal para encontrar piezas
     for i in range(len(nodo_param.tablero)): 
-        for j in range(len(nodo_param.tablero)): 
-            if nodo_param.tablero[i][j] == master_propio:
+        for j in range(len(nodo_param.tablero)):
+            pos = nodo_param.tablero[i][j]
+            if pos == master_propio:
+                xm, ym = i, j
                 piezas_propias += 10
-            elif nodo_param.tablero[i][j] == master_rival:
+            elif pos == master_rival:
+                xr, yr = i, j
                 piezas_rival += 10
-            elif nodo_param.tablero[i][j] == peon_propio:
+            elif pos == peon_propio:
                 piezas_propias += 1
-            elif nodo_param.tablero[i][j] == peon_rival:
+            elif pos == peon_rival:
                 piezas_rival += 1
+            
+            if (i,j) in posiciones_centrales:
+                if pos == peon_propio: centro_propio += 1
+                elif pos == peon_rival: centro_rival += 1
+                
+    # Si no se encuentra alguno de los masters
+    if xm == -1: return -INF
+    if xr == -1: return INF
+
+    dm_m = abs(xm-shrine_rival[0]) + abs(ym-shrine_rival[1])
+    dm_r = abs(xr-shrine_propio[0]) + abs(yr-shrine_propio[1])
+    
+    # Si alguno de los masters llego a la shrine
+    if dm_m == 0: return INF
+    if dm_r == 0: return -INF
+    
+    # Suma de puntuacion
     score += (piezas_propias - piezas_rival)*0.6
+    score += (centro_propio - centro_rival)*0.1
 
-    xm, ym = encontrarMaster(nodo_param.tablero, master_propio)
-    xr, yr = encontrarMaster(nodo_param.tablero, master_rival)
-    
-    shrine_propio = (4,2) if nodo_param.player_id == 0 else (0,2)
-    shrine_rival = (0,2) if nodo_param.player_id == 0 else (4,2)
+    casillas_atacadas = set()
+    tarjetas = nodo_param.tarjetas
+    rival = 1 if nodo_param.player_id == 0 else 0
 
-    dm_m = distancia_manhattan_shrine(xm, ym, shrine_rival)
-    if dm_m == 0:
-        return INF
+    for tarjeta in tarjetas:
+        if tarjeta.owner == rival:
+            for casilla in tarjeta.casillas:
+                fila_atacada = xm - casilla[1] 
+                columna_atacada = ym + casilla[0]
+                
+                if 0 <= fila_atacada < 5 and 0 <= columna_atacada < 5:
+                    casillas_atacadas.add((fila_atacada, columna_atacada))
 
-    dm_r = distancia_manhattan_shrine(xr, yr, shrine_propio)
-    if dm_r == 0:
-        return -INF
-    
-    score += (dm_m - dm_r)*0.3
-
-    centro = [(2,2), (2,1), (2,3)]
-    piezas_propias_centro = 0
-    piezas_rival_centro = 0
-    for i, j in centro:
-        if nodo_param.tablero[i][j] == master_propio.lower():
-            piezas_propias_centro += 1
-        elif nodo_param.tablero[i][j] == master_rival.lower():
-            piezas_rival_centro += 1
-    score += (piezas_propias_centro - piezas_rival_centro)*0.1
+    if (xm, ym) in casillas_atacadas:
+        score -= 1000
 
     return score
 
+# Funcion simple para ordenar calcularMovimientosPosibles() de forma rapida
+def eval_simplified(nodo):
+    return (nodo.vivasMias - nodo.vivasRival)
+
 def alpha_beta(nodo, profundidad, alfa, beta, jugadorMAX, tiempo_inicio, limite_ms):
-    if (time.time() - tiempo_inicio) * 1000 >= limite_ms:
-        return eval(nodo), None
+    # if (time.time() - tiempo_inicio) * 1000 >= limite_ms:
+    #     return eval(nodo), None
 
     if profundidad == 0 or esFinal(nodo):
         return eval(nodo), None
-    
-    movimientos = calcularMovimientosPosibles(nodo)
+
+    movimientos = sorted(calcularMovimientosPosibles(nodo), # Lista movimientos
+                   key=lambda m: eval_simplified(nodo),  # Para cada uno ordenar por eval_simplified()
+                   reverse=jugadorMAX)                      # Si MAX, descendente. Si MIN, ascendente.
 
     if jugadorMAX:
-        valor = -INF
+        valor = -INF-1
         mejorMov = None
         for mov in movimientos:
             nuevoNodo = aplica(mov, nodo)
-            valNuevoNodo, sigMov = alpha_beta(nuevoNodo, profundidad, alfa, beta, False, tiempo_inicio, limite_ms)
+            valNuevoNodo, _ = alpha_beta(nuevoNodo, profundidad-1, alfa, beta, False, tiempo_inicio, limite_ms)
             if valNuevoNodo > valor:
                 valor = valNuevoNodo
                 mejorMov = mov
                 alfa = max(alfa, valor)
-            if alfa >= beta:
+            if alfa >= beta or (time.time() - tiempo_inicio) * 1000 >= limite_ms:
                 break
         return valor, mejorMov
     
     else:
-        valor = INF
+        valor = INF+1
         mejorMov = None
         for mov in movimientos:
             nuevoNodo = aplica(mov, nodo)
-            valNuevoNodo, sigMov = alpha_beta(nuevoNodo, profundidad-1, alfa, beta, True, tiempo_inicio, limite_ms)
+            valNuevoNodo, _ = alpha_beta(nuevoNodo, profundidad-1, alfa, beta, True, tiempo_inicio, limite_ms)
             if valNuevoNodo < valor:
                 valor = valNuevoNodo
                 mejorMov = mov
                 beta = min(beta, valor)
-            if alfa >= beta:
+            if alfa >= beta or (time.time() - tiempo_inicio) * 1000 >= limite_ms:
                 break
         return valor, mejorMov
 
 player_id = int(input())
 turno = 0 if player_id == 0 else 1
+
 # game loop
 while True:
     board = []
+    vivasMias = 0
+    vivasRival = 0
     for i in range(5):
         row = input()
+        vivasMias += row.count("w")
+        vivasMias += row.count("W")
+        vivasRival += row.count("b")
+        vivasRival += row.count("B")
         board.append(list(row))
+    vivasTotal = vivasMias+vivasRival
 
     cards = []
     for i in range(5):
@@ -259,20 +305,14 @@ while True:
 
     for i in range(action_count):
         inputs = input().split()
-        card_id = int(inputs[0])
-        move = inputs[1]
-        posIni, posFin = traducirMovimientoAPosicion(move)
-        actions.append([player_id, card_id, [posIni, posFin]])
 
-    nodoInicial = Nodo(board, cards, turno, player_id)
+    nodoInicial = Nodo(board, cards, turno, player_id, vivasTotal, vivasMias, vivasRival)
 
-    if (len(actions) > 0):
+    if (action_count > 0):
         start_time = time.time()
-        valor, movimiento = alpha_beta(nodoInicial, 2, -INF, INF, True, start_time, 45) # movimiento como posicion -> [posIni, posFin], tiempo limite 45ms
+        valor, movimiento = alpha_beta(nodoInicial, 3, -INF, INF, True, start_time, 45) # movimiento como posicion -> [posIni, posFin], tiempo limite 45ms
         card_id = movimiento[1]
         move = traducirPosicionAMovimiento(movimiento[2])
         print(card_id, move) # cardID MOVE
     else:
         print('PASS')
-    # Write an action using print
-    # To debug: print("Debug messages...", file=sys.stderr, flush=True)
