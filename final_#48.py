@@ -187,10 +187,10 @@ def eval(nodo_param):
             pos = nodo_param.tablero[i][j]
             if pos == master_propio:
                 xm, ym = i, j
-                piezas_propias += 10
+                piezas_propias += 1
             elif pos == master_rival:
                 xr, yr = i, j
-                piezas_rival += 10
+                piezas_rival += 1
             elif pos == peon_propio:
                 piezas_propias += 1
             elif pos == peon_rival:
